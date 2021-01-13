@@ -1,5 +1,7 @@
 /*
  $Id: runglauber.C 186 2019-01-13 17:33:43Z loizides $
+Modification for HADES B.Kardan 02-04-2019
+Marked with BK
  -------------------------------------------------------------------------------------
  Latest documentation: https://arxiv.org/abs/1710.07098
  -------------------------------------------------------------------------------------
@@ -72,7 +74,7 @@
  along with this program. If not, see <http://www.gnu.org/licenses/>
 */
 
-#define HAVE_MATHMORE
+//#define HAVE_MATHMORE
 
 #if !defined(__CINT__) || defined(__MAKECINT__)
 #include <Riostream.h>
@@ -116,7 +118,7 @@ void runAndSaveNtuple(const Int_t n,
                       const Double_t mind     = 0.4,
 		      const Double_t omega    = -1,
                       const Double_t noded    = -1,
-                      const char *fname       = 0);
+                      const char *fname       ="glau_ntuple.root");
 
 //---------------------------------------------------------------------------------
 void runAndSaveNucleons(const Int_t n,                    
@@ -128,7 +130,8 @@ void runAndSaveNucleons(const Int_t n,
                         const Bool_t verbose    = 0,
 			const Double_t bmin     = 0.0,
 			const Double_t bmax     = 20.0,
-                        const char *fname       = 0);
+                        const char *fname      = "glau_nucleons.root");
+
 
 //---------------------------------------------------------------------------------
 void runAndSmearNtuple(const Int_t n,
@@ -139,7 +142,7 @@ void runAndSmearNtuple(const Int_t n,
                        const Double_t mind  = 0.4,
 		       const Double_t bmin  = 0.0,
 		       const Double_t bmax  = 20.0,
-                       const char *fname    = 0);
+                       const char *fname    = "glau_SmearNtuple.root");
 
 
 //---------------------------------------------------------------------------------
@@ -152,7 +155,7 @@ void runAndOutputLemonTree(const Int_t n,
 			   const Double_t bmin  = 0.0,
 			   const Double_t bmax  = 20.0,
 			   const Bool_t   ogrid = 0,
-			   const char *fname    = 0);
+			   const char *fname    = "glau_LemonTree.root");
 
 //---------------------------------------------------------------------------------
 void runAndCalcDens(const Int_t n,
@@ -251,6 +254,7 @@ class TGlauNucleus : public TNamed
     Int_t      fF;                   //Type of radial distribution
     Int_t      fTrials;              //Store trials needed to complete nucleus
     Int_t      fNonSmeared;          //Store number of non-smeared-node nucleons
+    Double_t   fRMSradius;           //BK  RMS radius of generated nucleus
     TF1*       fFunc1;               //!Probability density function rho(r)
     TF1*       fFunc2;               //!Probability density function rho(r) -> if set 1 is for p, 2 is for n
     TF2*       fFunc3;               //!Probability density function rho(r,theta) for deformed nuclei
@@ -294,6 +298,7 @@ class TGlauNucleus : public TNamed
     Double_t   GetXRot()          const {return fXRot;}
     Double_t   GetYRot()          const {return fYRot;}
     Double_t   GetZRot()          const {return fZRot;}
+    Double_t   GetRMSradius()     const {return fRMSradius;}  //BK
     void       SetA(Double_t ia, Double_t ia2=-1);
     void       SetBeta(Double_t b2, Double_t b4); 
     void       SetLattice(Int_t i)               {fLattice=i;}
@@ -305,6 +310,7 @@ class TGlauNucleus : public TNamed
     void       SetShiftMax(Double_t s)           {fSmax=s;}
     void       SetSmearing(Double_t s)           {fSmearing=s;}
     void       SetW(Double_t iw);
+    void       SetRMSradius(Double_t RMSradius) {fRMSradius=RMSradius;}  //BK
     TVector3  &ThrowNucleons(Double_t xshift=0.);
     ClassDef(TGlauNucleus,6) // TGlauNucleus class
 };
@@ -382,6 +388,7 @@ class TGlauberMC : public TNamed
     Int_t         fAN;             //Number of nucleons in nucleus A
     Int_t         fBN;             //Number of nucleons in nucleus B
     TNtuple*      fNt;             //Ntuple for results (created, but not deleted)
+    TNtuple*      fNtInfo;         //BK    Ntuple for results (created, but not deleted)
     Int_t         fEvents;         //Number of events with at least one collision
     Int_t         fTotalEvents;    //All events within selected impact parameter range
     Double_t      fBmin;           //Minimum impact parameter to be generated
@@ -441,6 +448,7 @@ class TGlauberMC : public TNamed
     TGlauNucleus*       GetNucleusA()                {return &fANucleus;}
     TGlauNucleus*       GetNucleusB()                {return &fBNucleus;}
     TNtuple*            GetNtuple()            const {return fNt;}
+     TNtuple*           GetNtupleInfo()        const {return fNtInfo;} //BK
     TObjArray          *GetNucleons();
     const Event        &GetEvent()             const {return fEv;}
     const Event        *GetEvent()                   {return &fEv;}
@@ -462,14 +470,17 @@ class TGlauberMC : public TNamed
     void                SetHardFrac(Double_t f)      {fHardFrac=f;}
     void                SetLattice(Int_t i)          {fANucleus.SetLattice(i); fBNucleus.SetLattice(i);}
     void                SetMinDistance(Double_t d)   {fANucleus.SetMinDist(d); fBNucleus.SetMinDist(d);}
+    void                SetRA(Double_t R, Double_t a){fANucleus.SetR(R); fBNucleus.SetR(R);
+                                                      fANucleus.SetA(a); fBNucleus.SetA(a);}
     void                SetNNProf(TF1 *f1)           {fNNProf = f1;}
     void                SetNodeDistance(Double_t d)  {fANucleus.SetNodeDist(d); fBNucleus.SetNodeDist(d);}
     void                SetRecenter(Int_t b)         {fANucleus.SetRecenter(b); fBNucleus.SetRecenter(b);}
     void                SetShiftMax(Double_t s)      {fANucleus.SetShiftMax(s); fBNucleus.SetShiftMax(s);}
     void                SetSmearing(Double_t s)      {fANucleus.SetSmearing(s); fBNucleus.SetSmearing(s);}
     const char         *Str()                  const {return Form("gmc-%s%s-snn%.1f-md%.1f-nd%.1f-rc%d-smax%.1f",fANucleus.GetName(),fBNucleus.GetName(),fXSect,fBNucleus.GetMinDist(),fBNucleus.GetNodeDist(),fBNucleus.GetRecenter(),fBNucleus.GetShiftMax());}
+    const char         *Str2()                 const {return Form("%s%s-snn%.1f-md%.1f-nd%.1f-rc%d-smax%.1f",fANucleus.GetName(),fBNucleus.GetName(),fXSect,fBNucleus.GetMinDist(),fBNucleus.GetNodeDist(),fBNucleus.GetRecenter(),fBNucleus.GetShiftMax());}
     static void         PrintVersion()               {cout << "TGlauberMC " << Version() << endl;}
-    static const char  *Version()                    {return "v3.2";}
+    static const char  *Version()                    {return "v3.2 (mod HADES)";}
 
     ClassDef(TGlauberMC,6) // TGlauberMC class
 };
@@ -1157,9 +1168,21 @@ void TGlauNucleus::Lookup(const char* name)
   else if (TString(name) == "Cu2")     {fN = 63;  fR = 4.20;       fA = 0.596;  fW =  0;       fF = 8;  fZ=29; fBeta2=0.162; fBeta4=-0.006;}  
   else if (TString(name) == "Cu2rw")   {fN = 63;  fR = 4.20;       fA = 0.596;  fW =  0;       fF = 14; fZ=29; fBeta2=0.162; fBeta4=-0.006; r0=1.01269; r1=-0.00298083; r2=-9.97222e-05;}  
   else if (TString(name) == "CuHN")    {fN = 63;  fR = 4.28;       fA = 0.5;    fW =  0;       fF = 1;  fZ=29;} // from arXiv:0904.4080v1
-  else if (TString(name) == "Xe")      {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 1;  fZ=54;} // adapted from arXiv:1703.04278
-  else if (TString(name) == "Xes")     {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 1;  fZ=54;} // scale from Sb (Antimony, A=122, r=5.32) by 1.019 = (129/122)**0.333
-  else if (TString(name) == "Xe2")     {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.161; fBeta4=-0.003;} // adapted from arXiv:1703.04278 and Z. Physik (1974) 270: 113
+  else if (TString(name) == "Nb")   {fN = 93; fR = 4.9853;  fA = 0.5234; fW =  0;        fF = 1; fZ=41;}
+  // <r^2>^(1/2)= 4.324    R= 4.9853(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  else if (TString(name) == "Zr")   {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=40;}  // FIXME fR and fA Nb !! 
+  else if (TString(name) == "Ru")   {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=44;}  // FIXME fR and fA Nb !! 
+  else if (TString(name) == "Ag")   {fN = 107; fR = 5.3006; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
+  // <r^2>^(1/2)= 4.544    R= 5.3006(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  else if (TString(name) == "Ag109"){fN = 109; fR = 5.3306; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
+  // 2. stable isotope
+  // <r^2>^(1/2)= 4.565    R= 5.3306(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  else if (TString(name) == "Xe")      {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 1;  fZ=54;}
+  // adapted from arXiv:1703.04278
+  else if (TString(name) == "Xes")     {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 1;  fZ=54;}
+  // scale from Sb (Antimony, A=122, r=5.32) by 1.019 = (129/122)**0.333
+  else if (TString(name) == "Xe2")     {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.161; fBeta4=-0.003;}
+  // adapted from arXiv:1703.04278 and Z. Physik (1974) 270: 113
   else if (TString(name) == "Xe2a")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.18; fBeta4=0;} // ALICE parameters (see public note from 2018 at https://cds.cern.ch/collection/ALICE%20Public%20Notes?ln=en)
   else if (TString(name) == "Xerw")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 12; fZ=54; r0=1.00911; r1=-0.000722999; r2=-0.0002663;}
   else if (TString(name) == "Xesrw")   {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 12; fZ=54; r0=1.0096; r1=-0.000874123; r2=-0.000256708;}
@@ -1169,7 +1192,12 @@ void TGlauNucleus::Lookup(const char* name)
   else if (TString(name) == "Aurw")    {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 12; fZ=79; r0=1.00899; r1=-0.000590908; r2=-0.000210598;}
   else if (TString(name) == "Au2")     {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 8;  fZ=79; fBeta2=-0.131; fBeta4=-0.031; }
   else if (TString(name) == "Au2rw")   {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 14; fZ=79; fBeta2=-0.131; fBeta4=-0.031; r0=1.01261; r1=-0.00225517; r2=-3.71513e-05;}
-  else if (TString(name) == "AuHN")    {fN = 197; fR = 6.42;       fA = 0.44;   fW =  0;       fF = 1;  fZ=79;} // from arXiv:0904.4080v1
+  else if (TString(name) == "AuHN")    {fN = 197; fR = 6.42;       fA = 0.44;   fW =  0;       fF = 1;  fZ=79;}
+  // from arXiv:0904.4080v1
+  else if (TString(name) == "Au3")     {fN = 197; fR = 6.5541;     fA = 0.523;  fW =  0;       fF = 1;  fZ=79;}
+  // from muonic and HBF calc from Landolt-Börnstein
+  else if (TString(name) == "Au4pn")   {fN = 197; fR = 6.538;      fA = 0.465;  fW =  0;       fF = 11; fZ=79; fR2=6.794; fA2=0.483; fW2=0;} //from GiBUU Lenske et al.
+
   else if (TString(name) == "Pb")      {fN = 208; fR = 6.62;       fA = 0.546;  fW =  0;       fF = 1;  fZ=82;}
   else if (TString(name) == "Pbrw")    {fN = 208; fR = 6.62;       fA = 0.546;  fW =  0;       fF = 12; fZ=82; r0=1.00863; r1=-0.00044808; r2=-0.000205872;} //only Pb 207 was tested but should be the same for 208
   else if (TString(name) == "Pb*")     {fN = 208; fR = 6.624;      fA = 0.549;  fW =  0;       fF = 1;  fZ=82;}
@@ -1682,16 +1710,23 @@ TVector3 &TGlauNucleus::ThrowNucleons(Double_t xshift)
     }
   }    
 
-  // calculate center of mass
+  // calculate center of mass and RMSradius
+  fRMSradius =0;    
   Double_t sumx=0;       
   Double_t sumy=0;       
   Double_t sumz=0;       
+  Double_t sumr2=0;       
   for (Int_t i = 0; i<fN; ++i) {
     TGlauNucleon *nucleon=(TGlauNucleon*)(fNucleons->At(i));
     sumx += nucleon->GetX();
     sumy += nucleon->GetY();
     sumz += nucleon->GetZ();
+      sumr2 += nucleon->GetX()*nucleon->GetX() + nucleon->GetY()*nucleon->GetY() +
+	     nucleon->GetZ()*nucleon->GetZ() ;
   }
+    fRMSradius = TMath::Sqrt(sumr2/fN);   //BK
+//    printf("ftrails: \t %d \t fRMSradius: \t  %.5f \t Sumr2: \t %.5f (fm)  \n",fTrials-fN,fRMSradius,sumr2); //BK
+
   sumx = sumx/fN;
   sumy = sumy/fN;
   sumz = sumz/fN;
@@ -1754,7 +1789,7 @@ TGlauberMC::TGlauberMC(const char* NA, const char* NB, Double_t xsect, Double_t 
   fANucleus(NA),fBNucleus(NB),
   fXSect(xsect),fXSectOmega(0),fXSectLambda(0),fXSectEvent(0),
   fNucleonsA(0),fNucleonsB(0),fNucleons(0),
-  fAN(0),fBN(0),fNt(0),
+  fAN(0),fBN(0),fNt(0),fNtInfo(0),
   fEvents(0),fTotalEvents(0),fBmin(0),fBmax(20),fHardFrac(0.65),
   fDetail(99),fCalcArea(0),fCalcLength(0), fDoCore(0), fDoAAGG(1),
   fMaxNpartFound(0),f2Cx(0),fPTot(0),fNNProf(0),
@@ -2420,6 +2455,37 @@ void TGlauberMC::Run(Int_t nevents, Double_t b)
     if ((i>0)&&(i%100)==0) 
       cout << "Event # " << i << " x-sect = " << GetTotXSect() << " +- " << GetTotXSectErr() << " b        \r" << flush;
   }
+  //BK Write out of Info
+  if (fNtInfo == 0) {
+    fNtInfo = new TNtuple("GlauberMCInfo","Parameters and Summarized Output",
+                "TotXSect:TotXSectErr:BMin:BMax:Events:TotEvents"
+                ":NA:aA:rA:wA:minA"
+                ":NB:aB:rB:wB:minB");
+//    fNtInfo->SetDirectory(0);
+
+        Float_t info[16];
+        Int_t c=0;
+        info[c++]  = GetTotXSect();
+        info[c++]  = GetTotXSectErr();
+        info[c++]  = fBmin;
+        info[c++]  = fBmax;
+        info[c++]  = fEvents;
+        info[c++]  = fTotalEvents;
+        info[c++]  = fAN;
+        info[c++]  = fANucleus.GetA();
+        info[c++]  = fANucleus.GetR();
+        info[c++]  = fANucleus.GetW();
+        info[c++]  = fANucleus.GetMinDist();
+        info[c++]  = fBN;
+        info[c++]  = fBNucleus.GetA();
+        info[c++]  = fBNucleus.GetR();
+        info[c++]  = fBNucleus.GetW();
+        info[c++]  = fBNucleus.GetMinDist();
+
+	
+	fNtInfo->Fill(info);
+  }
+
   if (nevents>99)
     cout << endl << "Done!" << endl;
 }
