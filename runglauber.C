@@ -116,7 +116,7 @@ void runAndSaveNtuple(const Int_t n,
                       const Double_t signn    = 67.6,
                       const Double_t sigwidth = -1,
                       const Double_t mind     = 0.4,
-		      const Double_t omega    = -1,
+                      const Double_t omega    = -1,
                       const Double_t noded    = -1,
                       const char *fname       ="glau_ntuple.root");
 
@@ -448,7 +448,7 @@ class TGlauberMC : public TNamed
     TGlauNucleus*       GetNucleusA()                {return &fANucleus;}
     TGlauNucleus*       GetNucleusB()                {return &fBNucleus;}
     TNtuple*            GetNtuple()            const {return fNt;}
-     TNtuple*           GetNtupleInfo()        const {return fNtInfo;} //BK
+    TNtuple*            GetNtupleInfo()        const {return fNtInfo;} //BK
     TObjArray          *GetNucleons();
     const Event        &GetEvent()             const {return fEv;}
     const Event        *GetEvent()                   {return &fEv;}
@@ -473,12 +473,13 @@ class TGlauberMC : public TNamed
     void                SetRA(Double_t R, Double_t a){fANucleus.SetR(R); fBNucleus.SetR(R);
                                                       fANucleus.SetA(a); fBNucleus.SetA(a);}
     void                SetNNProf(TF1 *f1)           {fNNProf = f1;}
+    void                SetXSectDist(TF1 *f1)        {fPTot = f1;}
     void                SetNodeDistance(Double_t d)  {fANucleus.SetNodeDist(d); fBNucleus.SetNodeDist(d);}
     void                SetRecenter(Int_t b)         {fANucleus.SetRecenter(b); fBNucleus.SetRecenter(b);}
     void                SetShiftMax(Double_t s)      {fANucleus.SetShiftMax(s); fBNucleus.SetShiftMax(s);}
     void                SetSmearing(Double_t s)      {fANucleus.SetSmearing(s); fBNucleus.SetSmearing(s);}
     const char         *Str()                  const {return Form("gmc-%s%s-snn%.1f-md%.1f-nd%.1f-rc%d-smax%.1f",fANucleus.GetName(),fBNucleus.GetName(),fXSect,fBNucleus.GetMinDist(),fBNucleus.GetNodeDist(),fBNucleus.GetRecenter(),fBNucleus.GetShiftMax());}
-    const char         *Str2()                 const {return Form("%s%s-snn%.1f-md%.1f-nd%.1f-rc%d-smax%.1f",fANucleus.GetName(),fBNucleus.GetName(),fXSect,fBNucleus.GetMinDist(),fBNucleus.GetNodeDist(),fBNucleus.GetRecenter(),fBNucleus.GetShiftMax());}
+    const char         *Str2()                 const {return Form("GlauberMC_%s%s-snn%.1fmb-md%.1f-nd%.1f-rc%d-smax%.1f"    ,fANucleus.GetName(),fBNucleus.GetName(),fXSect,fBNucleus.GetMinDist(),fBNucleus.GetNodeDist(),fBNucleus.GetRecenter(),fBNucleus.GetShiftMax());}
     static void         PrintVersion()               {cout << "TGlauberMC " << Version() << endl;}
     static const char  *Version()                    {return "v3.2 (mod HADES)";}
 
@@ -1144,6 +1145,7 @@ void TGlauNucleus::Lookup(const char* name)
   Double_t r0=0, r1=0, r2=0;
 
   if      (TString(name) == "p")       {fN = 1;   fR = 0.234;      fA = 0;      fW =  0;       fF = 0;  fZ=1;}
+  else if (TString(name) == "pi")      {fN = 1;   fR = 0.234;      fA = 0;      fW =  0;       fF = 0;  fZ=1;}
   else if (TString(name) == "pg")      {fN = 1;   fR = 0.514;      fA = 0;      fW =  0;       fF = 9;  fZ=1;} 
   else if (TString(name) == "pdg")     {fN = 1;   fR = 1;          fA = 0;      fW =  0;       fF = 10; fZ=1;} // from arXiv:1101.5953
   else if (TString(name) == "dpf")     {fN = 2;   fR = 0.01;       fA = 0.5882; fW =  0;       fF = 1;  fZ=1;} // deuteron 2pf (tuned to Hulthen)
@@ -1187,6 +1189,12 @@ void TGlauNucleus::Lookup(const char* name)
   else if (TString(name) == "Xerw")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 12; fZ=54; r0=1.00911; r1=-0.000722999; r2=-0.0002663;}
   else if (TString(name) == "Xesrw")   {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 12; fZ=54; r0=1.0096; r1=-0.000874123; r2=-0.000256708;}
   else if (TString(name) == "Xe2arw")  {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 14; fZ=54; fBeta2=0.18; fBeta4=0; r0=1.01246; r1=-0.0024851; r2=-5.72464e-05;} 
+  else if (TString(name) == "W184")    {fN = 184; fR = 6.3599;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
+  else if (TString(name) == "W186")    {fN = 186; fR = 6.3839;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
+  // both from Landolt-Börnstein
+  // W184 <r^2>^(1/2)= 5.373    R= 6.3599  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
+  // W186 <r^2>^(1/2)= 5.381    R= 6.3839  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
+
   else if (TString(name) == "W")       {fN = 186; fR = 6.58;       fA = 0.480;  fW =  0;       fF = 1;  fZ=74;}
   else if (TString(name) == "Au")      {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 1;  fZ=79;}
   else if (TString(name) == "Aurw")    {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 12; fZ=79; r0=1.00899; r1=-0.000590908; r2=-0.000210598;}

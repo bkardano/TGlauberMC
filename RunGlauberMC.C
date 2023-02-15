@@ -1,7 +1,9 @@
+#include "./runglauber.C" 
+
 void RunGlauberMC(TString flag="AuAu")
 {
   //load libraries
-  gROOT->LoadMacro("./runglauber.C+");
+  //gROOT->LoadMacro("./runglauber.C+"); // for old ROOT5
 
 
   //---------------------------------------------------//
@@ -17,6 +19,9 @@ void RunGlauberMC(TString flag="AuAu")
   Double_t signn=23.6; //43.6;// 25; // inelastic nucleon nucleon cross section
   Double_t mind=0.9;
   Double_t bmax=0.;
+  Double_t xsectsigma=0;
+  
+  TString extraText = "";//"_test";
 
   TString pdir = Form("./root/");
   gSystem->mkdir(pdir.Data(), kTRUE);
@@ -32,7 +37,7 @@ void RunGlauberMC(TString flag="AuAu")
           signn=23.6; 
   }
   else  if(flag == "AuC"){
-          sysA="Au"; 
+          sysA="Au3"; 
           sysB="C";
           signn=23.6; 
   }
@@ -58,22 +63,32 @@ void RunGlauberMC(TString flag="AuAu")
           sysB="C";
           signn=26.; 
   }
-
+  else if(flag == "pNb35"){
+          sysA="p"; 
+          sysB="Nb";
+		  //plab = 4.338 GeV/c
+		  //totsig_nn 41.83
+		  //totsig_pn 42.19
+		  //elastic 13
+          signn=29.; 
+  }
+  else if(flag == "piW"){
+          sysA="pi"; 
+          sysB="W184";
+          signn=34.3; 
+  }
   else return;
 
-  //  TGlauberMC(const char* NA = "Pb", const char* NB = "Pb", Double_t xsect = 42, Double_t xsectpn = 0, Double_t xsectsigma=0);
+  nevents = 205;
 
-  //TGlauberMC *mcg = reinterpret_cast<TGlauberMC *>(gInterpreter->ProcessLine(".L ./runglauber.C"));
-
-  TGlauberMC *mcg = new TGlauberMC(sysA,sysB,signn);
+  TGlauberMC *mcg = new TGlauberMC(sysA,sysB,signn,xsectsigma);
   mcg->SetMinDistance(mind);
 //  mcg->SetRA(r,a);
-  mcg->SetCalcArea(kTRUE);
-  mcg->SetCalcLength(kTRUE);
   if(bmax>0)mcg->SetBmax(bmax);
+  mcg->SetDetail(2);
 
   const char *fname=mcg->Str2(); // name output file
-  TString outfilename = Form("%sGlauberMC_%s%s_ntuple_%2.1fmb_m%2.1f%s.root",pdir.Data(), sysA, sysB, signn, mind , fname );    
+  TString outfilename = Form("%s%s%s.root",pdir.Data(), fname, extraText.Data());    
   printf("filename: \t%s\n",outfilename.Data());
   TFile *outputFile = NULL;
   if((gSystem->AccessPathName(Form("%s",outfilename.Data()),kFileExists))){
@@ -86,7 +101,7 @@ void RunGlauberMC(TString flag="AuAu")
         cout<<endl;
         return;
   }
-
+  
   mcg->Run(nevents);
 
   TNtuple  *nt=mcg->GetNtuple();
@@ -95,7 +110,10 @@ void RunGlauberMC(TString flag="AuAu")
   if(nt) nt->Write();
   if(ntInfo) ntInfo->Write();
 
-  printf("total cross section with a nucleon-nucleon cross section \t%f is \t%f  \n",signn,mcg->GetTotXSect());
+  printf("total cross section: \t%.3f +- %.3f barn \t with a nucleon-nucleon cross section \t%.2f mb \n"
+	  ,mcg->GetTotXSect(), mcg->GetTotXSectErr(),signn);
   out.Close();
+  
+  return;
 
 }

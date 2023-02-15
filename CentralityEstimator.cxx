@@ -128,7 +128,7 @@ Double_t CentralityEstimator::GetEstimator(Double_t f, UInt_t flag)
 //    
 //}
 
-void CentralityEstimator::AddEstimator(TString name, Double_t f, Double_t mu, Double_t k, TString s)
+void CentralityEstimator::AddEstimator(TString name, Double_t f, Double_t mu, Double_t k, TString s, Bool_t makeC)
 {
     cout << "Adding Estimator: " << name <<"   f: " << f << "  mu: " << mu << " k: " << k << " mode #:" << GetModeFromString(s) << " mode :" << s <<endl;
     estimatorName.push_back(name);
@@ -136,7 +136,88 @@ void CentralityEstimator::AddEstimator(TString name, Double_t f, Double_t mu, Do
     estimatorF.push_back   (f);
     estimatorMu.push_back  (mu);
     estimatorK.push_back   (k);
+    estimatorMakeCentrality.push_back(makeC);
+
     
+}
+
+Int_t CentralityEstimator::findEdgeBin(TH1F *htemp)
+{
+      if(!htemp) return 0;
+      Int_t   MeanBin = htemp->FindBin(htemp->GetMean());
+      Int_t   nBinsX  = htemp->GetNbinsX();
+      Float_t ThresholdBinValue = FLT_MAX;
+      Int_t   ThresholdBin = 0;
+      for (Int_t i=MeanBin; i<nBinsX; i++) {
+             if (htemp->GetBinContent(i)<ThresholdBinValue) {
+                 ThresholdBinValue = htemp->GetBinContent(i);
+                 ThresholdBin = htemp->GetBinLowEdge(i);
+             }
+      }
+     Float_t QA=0;
+     Float_t QA2=0;
+     Int_t count=0;
+     Int_t MinFitGaus2=0;
+
+     Float_t gaus2Par1=0;
+     Float_t gaus2Par2=0;
+     Float_t gaus2Par3=0;
+     Float_t buffer1=0,buffer2=0;
+     TF1 *fgaus = new TF1("fgaus","gaus",0,htemp->GetNbinsX());
+
+
+
+     for (Int_t j=MeanBin; j<ThresholdBin; j++) {
+            htemp->Fit("fgaus","+QR0","",j,ThresholdBin);
+            QA2=QA;
+            buffer1 = gaus2Par2;
+            buffer2 = gaus2Par3;
+            gaus2Par1=fgaus->GetParameter(0);
+            gaus2Par2=fgaus->GetParameter(1);
+            gaus2Par3=fgaus->GetParameter(2);
+            if(fgaus->GetNDF() > 1.) QA  = fgaus->GetChisquare()/fgaus->GetNDF();
+                if(0) printf("gausFit QA %f, Par1 %f , Par2  %f, Par3 %f, IBin  %d\n",
+                   QA,gaus2Par1,gaus2Par2,gaus2Par3,j);
+            if  (  (gaus2Par2<buffer1) || (gaus2Par3>buffer2)) count++;
+            if ( (QA<1.5) ) count++;
+            if  (count>2) {MinFitGaus2=j-2; break;}
+     }
+     Double_t ochi2 = 0;
+     
+     // ======== Threshold Finder
+     for (Int_t j=MinFitGaus2; j<nBinsX; j++) {
+             if(fgaus->Eval(htemp->GetBinCenter(j)) < 1.){
+                     ThresholdBin      = htemp->GetBinCenter(j);
+                     break;
+             }
+     }
+      return ThresholdBin;
+}
+
+
+TH1F* CentralityEstimator::makePercentiles(TH1F *htemp, Float_t fractionXsection, Int_t direction)
+{
+  if(!htemp) return 0;  
+  if(fractionXsection<0.1) return 0;
+  TH1F *hpercent  = (TH1F*) htemp->Clone("hpercent");
+  TString name=htemp->GetName();   
+  name.Append("_percentile");
+  hpercent->SetNameTitle(name.Data(),name.Data());
+  hpercent->Reset();
+  Int_t maxBin = htemp->GetNbinsX();
+  if(direction<0) maxBin = findEdgeBin(htemp);
+  Float_t totIntegral = fractionXsection / htemp->Integral(1,maxBin); 
+  if(direction<0){
+      for (int ibin=1; ibin<=htemp->GetNbinsX(); ibin++){
+          hpercent->SetBinContent(ibin, totIntegral * htemp->Integral(ibin,htemp->GetNbinsX()) );
+      } 
+  }
+  else if(direction>0){
+      for (int ibin=1; ibin<=htemp->GetNbinsX(); ibin++){
+          hpercent->SetBinContent(ibin, totIntegral * htemp->Integral(1,ibin) );
+      } 
+  }
+  return hpercent;
 }
 
 void CentralityEstimator::Run()
@@ -145,9 +226,68 @@ void CentralityEstimator::Run()
     fNewtree = fSimTree->CloneTree();
     
     for(UInt_t iArray=0;iArray<estimatorName.size();iArray++){
+            TH1F *hist = new TH1F("hist_temp","",500, 0, 500);
+            hist->SetCanExtend(TH1::kAllAxes);
+            hist->SetDirectory(0);
+            
             cout << "Creating Estimator: " << estimatorName[iArray] <<" .... "<< endl;
             Float_t estimator;
+            Float_t percentile;
             TBranch *bpt = fNewtree->Branch( estimatorName[iArray].Data() ,&estimator ,Form("%s/F",estimatorName[iArray].Data()) );
+            SetNBDhist(estimatorMu[iArray], estimatorK[iArray]);
+            for (Int_t i=0; i<nEntries; i++){
+                fNewtree->GetEntry(i);
+                estimator = GetEstimator(estimatorF[iArray],estimatorMode[iArray]);
+                bpt->Fill();
+                hist->Fill(estimator);
+                if (!(i%100))  cout << "Filling Estimator: " << estimatorName[iArray].Data() <<"  Event # " << i << "\r" << flush;
+            }
+            cout << endl;
+            //hist->Print("all");
+            if(estimatorMakeCentrality[iArray]){
+                cout << "Making CentralityPercentile: " << estimatorName[iArray] <<endl;
+                TH1F *histPercent = (TH1F*) makePercentiles(hist);
+                //histPercent->Print("all");
+                TBranch *bpt2 = fNewtree->Branch( Form("%s_centrality",estimatorName[iArray].Data()) ,&percentile ,Form("%s_centrality/F",estimatorName[iArray].Data()) );
+                for (Int_t i=0; i<nEntries; i++){
+                    fNewtree->GetEntry(i);
+                    //Int_t bin = histPercent->FindBin(estimator);
+                    percentile = histPercent->Interpolate(estimator);
+                    bpt2->Fill();
+                    cout << "Filling Estimator:  " << estimator << "  Event # " << i << "  Percentile:  "<< percentile << "\r" << flush;
+                }
+            }
+    }
+    
+    cout << "Making CentralityPercentile for ImpactParameter: "  << endl;
+    TH1F *histImp = new TH1F("hist_Imp","",500, 0, 20);
+    histImp->SetCanExtend(TH1::kAllAxes);
+    histImp->SetDirectory(0);
+    
+    for (Int_t i=0; i<nEntries; i++){
+        fNewtree->GetEntry(i);
+        histImp->Fill(fB);
+        if (!(i%100))  cout << "Filling ImpactParameter: " << fB <<"  Event # " << i << "\r" << flush;
+    }
+    cout << endl;
+    TH1F *histImpPercent = (TH1F*) makePercentiles(histImp, 100., 1);
+    Float_t percentileImp;
+    TBranch *bptImp = fNewtree->Branch( "B_centrality" ,&percentileImp ,"B_centrality/F" );
+    for (Int_t i=0; i<nEntries; i++){
+        fNewtree->GetEntry(i);
+        Int_t bin = histImpPercent->FindBin(fB);
+        percentileImp = histImpPercent->GetBinContent(bin);
+        bptImp->Fill();
+        if (!(i%100))  cout << "Filling ImpactParameter Percentile: " << fB <<"  Event # " << i << "\r" << flush;
+    }
+    /*
+    for(UInt_t iArray=0;iArray<estimatorName.size();iArray++){
+            cout << "Making CentralityPercentile: " << estimatorName[iArray] <<endl;
+            TH1F *histPercent = (TH1F*) makePercentiles(hist);
+            Float_t estimator;
+            Float_t percentile;
+            TBranch *bpt = fNewtree->Branch( estimatorName[iArray].Data() ,&estimator ,Form("%s/F",estimatorName[iArray].Data()) );
+            TBranch *bpt = fNewtree->Branch( Form("%s_centrality",estimatorName[iArray].Data()) ,&percentile ,Form("%s_centrality/F",estimatorName[iArray].Data()) );
             SetNBDhist(estimatorMu[iArray], estimatorK[iArray]);
             for (Int_t i=0; i<nEntries; i++)
             {
@@ -158,6 +298,7 @@ void CentralityEstimator::Run()
             }
             cout << endl;
     }
+*/
 
    //fNewtree->Print();
    fNewtree->Write("", TObject::kOverwrite);

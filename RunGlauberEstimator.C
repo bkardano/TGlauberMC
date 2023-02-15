@@ -1,6 +1,8 @@
+#include "CentralityEstimator.cxx"
+
 void RunGlauberEstimator(TString flag="AuAu")
 {
-    gROOT->LoadMacro("CentralityEstimator.cxx+g");
+    //gROOT->LoadMacro("CentralityEstimator.cxx+g");
     
     CentralityEstimator *centEst = new CentralityEstimator();
     
@@ -26,18 +28,21 @@ void RunGlauberEstimator(TString flag="AuAu")
     if(flag == "AuAuPU"){
         infilename = "./root/GlauberMC_AuAu_system_run0.root";//GlauberMC_Au3Au3_ntuple_23.6mb_r6.5541_a0.523_m0.9.root";
         treename = "nt_Au_Au";
-        outfilename = "./root/GlauberMC_Au3Au3_ntuple_23.6mb_r6.5541_a0.523_m0.9_withEstimatorPileUP.root";    
+        outfilename = "./root/GlauberMC_Au3Au3_ntuple_23.6mb_r6.5541_a0.523_m0.9_withEstimatorPileUPSimon.root";    
         
-         centEst->AddEstimator("TOFRPCnew"               ,  1.  , 0.742696 , 20.5058 ); 
+         centEst->AddEstimator("TOFRPCnew"               ,  1.  , 0.742696 , 20.5058 ,"", kTRUE);
         
-        centEst->AddEstimator("TOF"                  , -1.64069e-06 , 0.202237 , 6.36083  );
+        centEst->AddEstimator("TOF"                  , -1.64069e-06 , 0.202237 , 6.36083 ,"", kTRUE);
         //f = -1.64069e-06    mu = 0.202237    k = 6.36083    Chi2Min = 50.1303    
-        centEst->AddEstimator("RPC"               ,   -1.64069e-06  , 0.503523  , 29.063 ); 
+        centEst->AddEstimator("RPC"               ,   -1.64069e-06  , 0.503523  , 29.063 ,"", kTRUE);
         // f = -1.64069e-06    mu = 0.503523    k = 29.063    Chi2Min = 39.0985
-        centEst->AddEstimator("PrimaryParticleCand"  , -1.3825e-07 , 0.185581  , 7.60447 );
+        centEst->AddEstimator("PrimaryParticleCand"  , -1.3825e-07 , 0.185581  , 7.60447 ,"", kTRUE);
         //f = -1.3825e-07    mu = 0.185581    k = 7.60447    Chi2Min = 89.24
-        centEst->AddEstimator("SelectedParticleCand" ,  -1.3825e-07  ,0.215636 , 5.18754  );
+        centEst->AddEstimator("SelectedParticleCand" ,  -1.3825e-07  ,0.215636 , 5.18754  ,"", kTRUE);
         //f = -1.3825e-07    mu = 0.215636    k = 5.18754    Chi2Min = 45.4244
+
+		//new from μ = 0.242, k = 55.828, ε = -0.79 x 10^-6
+        centEst->AddEstimator("SelectedParticleCandSimon" ,  -0.79e-06  ,0.242 , 55.828  ,"", kTRUE);
 
         //new
         centEst->AddEstimator("FWSumChargeZ"         , 35.2 , 1.1723045823 , 104. , "FWAu");
@@ -52,6 +57,8 @@ void RunGlauberEstimator(TString flag="AuAu")
         //f = -1.3825e-07    mu = 0.185581    k = 7.60447    Chi2Min = 89.24
         centEst->AddEstimator("SelectedParticleCandPileUp" ,  -1.3825e-07  ,0.215636 , 5.18754  , "PileUp");
         //f = -1.3825e-07    mu = 0.215636    k = 5.18754    Chi2Min = 45.4244
+
+
 
 
 
@@ -140,6 +147,65 @@ void RunGlauberEstimator(TString flag="AuAu")
         //f = -1.15545e-06    mu = 0.254489    k = 9.53861    Chi2Min = 133.259 
 
     }
+    else if(flag == "AgAgGen5"){
+        infilename = "./root/GlauberMC_AgAg_ntuple_25.0mb_m0.9AgAg-snn25.0-md0.9-nd0.0-rc1-smax99.0fast.root";
+        treename = "nt_Ag_Ag";
+        outfilename = Form("./root/GlauberMC_AgAg_ntuple_25.0mb_m0.9AgAg-snn25.0-md0.9-nd0.0-rc1-smax99.0_%s_withEstimatorSimon.root",flag.Data()); 
+        
+        centEst->AddEstimator("TOFRPC"               , -7.60045e-06  ,0.893058 , 2.56612 ,"", kTRUE);
+        //f = -7.60045e-06    mu = 0.893058    k = 2.56612    Chi2Min = 185.81
+        centEst->AddEstimator("TOF"                  , -7.20045e-06 , 0.252345 , 3.45035 ,"", kTRUE);
+        //f = -7.20045e-06    mu = 0.252345    k = 3.45035    Chi2Min = 57.4873
+        centEst->AddEstimator("RPC"               ,   -5.20045e-06  , 0.590186 , 3.0533 ,"", kTRUE);
+        //f = -5.20045e-06    mu = 0.590186    k = 3.05334    Chi2Min = 70.127
+        centEst->AddEstimator("PrimaryParticleCand"  , -1.91295e-06 , 0.251327 , 7.81392 ,"", kTRUE);
+        //f = -1.91295e-06    mu = 0.251327    k = 7.81392    Chi2Min = 217.461
+        //f = -1.91295e-06    mu = 0.251142    k = 0.549159    Chi2Min = 1.65913
+        centEst->AddEstimator("SelectedParticleCand" , -8.39295e-06 , 0.353451 , 1.2746  ,"", kTRUE);
+        //f = -8.39295e-06    mu = 0.353451    k = 1.2746    Chi2Min = 529.477
+        //f = -8.39295e-06    mu = 0.351508    k = 0.474222    Chi2Min = 2.48484
+        
+        //new fits with fixed alpha
+        centEst->AddEstimator("TOFNew"                , -1.64069e-06 , 0.213462 , 5.25124 ,"", kTRUE);
+        //f = -1.64069e-06    mu = 0.213462    k = 5.25124    Chi2Min = 14.5059
+        centEst->AddEstimator("RPCNew"                , -1.64069e-06 , 0.533414 , 22.3768 ,"", kTRUE);
+        //f = -1.64069e-06    mu = 0.533414    k = 22.3768    Chi2Min = 6.10273
+        
+        
+        //simon values
+        // ToF: α = -2.04e-06, µ = 0.212 und k = 86.265
+        // RPC: α = -2.41e-06, µ = 0.540 und k = 6.673
+        centEst->AddEstimator("TOFSimon"               , -2.04e-06 , 0.212 , 86.265 ,"", kTRUE);
+        centEst->AddEstimator("RPCSimon"               , -2.41e-06 , 0.540 , 6.673  ,"", kTRUE);
+        
+        
+        //new
+        centEst->AddEstimator("FWSumChargeZ"         , 35.2 , 1.13231 , 104. , "FWAg");
+        
+        centEst->AddEstimator("TOFRPCPileUp"               , -7.60045e-06  ,0.893058 , 2.56612  ,"PileUp");
+        //f = -7.60045e-06    mu = 0.893058    k = 2.56612    Chi2Min = 185.81
+        centEst->AddEstimator("TOFPileUp"                  , -7.20045e-06 , 0.252345 , 3.45035  ,"PileUp");
+        //f = -7.20045e-06    mu = 0.252345    k = 3.45035    Chi2Min = 57.4873
+        centEst->AddEstimator("RPCPileUp"               ,   -5.20045e-06  , 0.590186 , 3.0533 ,"PileUp");
+        //f = -5.20045e-06    mu = 0.590186    k = 3.05334    Chi2Min = 70.127
+        centEst->AddEstimator("PrimaryParticleCandPileUp"   , -1.91295e-06 , 0.251142 , 0.549159 ,"PileUp");
+        //f = -1.98545e-06    mu = 0.226791    k = 4.46572    Chi2Min = 151.598
+        centEst->AddEstimator("SelectedParticleCandPileUp" , -1.15545e-06 , 0.254489 , 9.53861  ,"PileUp");
+        //f = -1.15545e-06    mu = 0.254489    k = 9.53861    Chi2Min = 133.259
+        centEst->AddEstimator("TOFRPCPileUp2"               , -7.60045e-06  ,0.893058 , 2.56612  ,"PileUp2");
+        //f = -7.60045e-06    mu = 0.893058    k = 2.56612    Chi2Min = 185.81
+        centEst->AddEstimator("TOFPileUp2"                  , -7.20045e-06 , 0.252345 , 3.45035  ,"PileUp2");
+        //f = -7.20045e-06    mu = 0.252345    k = 3.45035    Chi2Min = 57.4873
+        centEst->AddEstimator("RPCPileUp2"               ,   -5.20045e-06  , 0.590186 , 3.0533 ,"PileUp2");
+        //f = -5.20045e-06    mu = 0.590186    k = 3.05334    Chi2Min = 70.127
+        centEst->AddEstimator("PrimaryParticleCandPileUp2"   , -1.91295e-06 , 0.251142 , 0.549159 ,"PileUp2");
+        //f = -1.98545e-06    mu = 0.226791    k = 4.46572    Chi2Min = 151.598
+        centEst->AddEstimator("SelectedParticleCandPileUp2" , -8.39295e-06 , 0.351508 , 0.474222  ,"PileUp2");
+        //f = -1.15545e-06    mu = 0.254489    k = 9.53861    Chi2Min = 133.259 
+        
+    }
+    
+    
     else if(flag == "AgAg123Gen0"){
         infilename = "./root/GlauberMC_AgAg_ntuple_23.6mb_m0.9AgAg-snn23.6-md0.9-nd0.0-rc1-smax99.0.root";
         treename = "nt_Ag_Ag";

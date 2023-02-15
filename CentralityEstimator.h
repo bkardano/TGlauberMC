@@ -50,7 +50,9 @@ class CentralityEstimator : public TNamed
         void      LoadInputTree(Int_t nEntries = -1);
         Double_t  GetEstimator(Double_t f, UInt_t flag=kDefault);
 //        void      AddEstimator(TString name, Double_t f, Double_t mu, Double_t k, UInt_t mode=kDefault);
-        void      AddEstimator(TString name, Double_t f, Double_t mu, Double_t k, TString s="");
+        void      AddEstimator(TString name, Double_t f, Double_t mu, Double_t k, TString s="Default", Bool_t makeCentrality=kFALSE);
+        Int_t     findEdgeBin(TH1F *htemp);
+        TH1F*     makePercentiles(TH1F* hist, Float_t fractionXsection=100., Int_t direction=-1);
         void      Run();
 
         Double_t  NBD(Double_t n, Double_t mu, Double_t k) const;
@@ -89,6 +91,7 @@ class CentralityEstimator : public TNamed
         vector <Double_t> estimatorF;
         vector <Double_t> estimatorMu;
         vector <Double_t> estimatorK;
+        vector <Bool_t>   estimatorMakeCentrality;
         
         Int_t nEntries;
         Int_t fNpartMax, fNcollMax;
