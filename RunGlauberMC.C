@@ -26,7 +26,22 @@ void RunGlauberMC(TString flag="AuAu")
   TString pdir = Form("./root/");
   gSystem->mkdir(pdir.Data(), kTRUE);
 
-  if(flag == "AgAg"){
+  if(flag == "AuAu"){
+          sysA="Au3"; 
+          sysB="Au3";
+          signn=23.6; 
+  }
+  else if(flag == "AuAu800"){
+          sysA="Au3"; 
+          sysB="Au3";
+          signn=16.64; 
+  }
+  else if(flag == "AuAu400"){
+          sysA="Au3"; 
+          sysB="Au3";
+          signn=2.0; 
+  }
+  else if(flag == "AgAg"){
           sysA="Ag"; 
           sysB="Ag";
           signn=25.; 
@@ -79,7 +94,7 @@ void RunGlauberMC(TString flag="AuAu")
   }
   else return;
 
-  nevents = 205;
+  nevents = 1e5;
 
   TGlauberMC *mcg = new TGlauberMC(sysA,sysB,signn,xsectsigma);
   mcg->SetMinDistance(mind);
