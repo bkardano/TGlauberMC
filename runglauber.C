@@ -285,6 +285,7 @@ class TGlauNucleus : public TNamed
     TF2*       GetFuncDef()       const {return fFunc3;}
     Double_t   GetMinDist()       const {return fMinDist;}
     Int_t      GetN()             const {return fN;}
+    Int_t      GetZ()             const {return fZ;}
     Double_t   GetNodeDist()      const {return fNodeDist;}
     TObjArray *GetNucleons()      const {return fNucleons;}
     Int_t      GetRecenter()      const {return fRecenter;}
@@ -335,6 +336,9 @@ class TGlauberMC : public TNamed
         Float_t NpartA;      //Number of wounded (participating) nucleons in Nucleus A
         Float_t NpartB;      //Number of wounded (participating) nucleons in Nucleus B
         Float_t Npart0;      //Number of singly-wounded (participating) nucleons
+        Float_t NpartAn;     //Number of wounded (participating) neutrons in Nucleus A
+        Float_t NpartBn;     //Number of wounded (participating) neutrons in Nucleus B
+        Float_t Npart0n;     //Number of singly-wounded (participating) neutrons
         Float_t AreaW;       //[0,0,16] area defined by width of participants
         Float_t Psi1;        //[0,0,16] psi1
         Float_t Ecc1;        //[0,0,16] eps1
@@ -367,7 +371,8 @@ class TGlauberMC : public TNamed
         Float_t ThetaA;      //[0,0,16] theta angle nucleus B
         Float_t PhiB;        //[0,0,16] phi angle nucleus B
         Float_t ThetaB;      //[0,0,16] theta angle nucleus B
-        void    Reset()      {Npart=0;Ncoll=0;Nhard=0;B=0;BNN=0;Ncollpp=0;Ncollpn=0;Ncollnn=0;VarX=0;VarY=0;VarXY=0;NpartA=0;NpartB=0;Npart0=0;AreaW=0;
+        void    Reset()      {Npart=0;Ncoll=0;Nhard=0;B=0;BNN=0;Ncollpp=0;Ncollpn=0;Ncollnn=0;VarX=0;VarY=0;VarXY=0;
+                              NpartA=0;NpartB=0;Npart0=0;NpartAn=0;NpartBn=0;Npart0n=0;AreaW=0;
                               Psi1=0;Ecc1=0;Psi2=0;Ecc2=0;Psi3=0;Ecc3=0;Psi4=0;Ecc4=0;Psi5=0;Ecc5=0;
                               AreaA=0;AreaO=0;X0=0;Y0=0;Phi0=0;Length=0;
                               MeanX=0;MeanY=0;MeanX2=0;MeanY2=0;MeanXY=0;MeanXSystem=0;MeanYSystem=0;MeanXA=0;MeanYA=0;MeanXB=0;MeanYB=0;
@@ -379,6 +384,7 @@ class TGlauberMC : public TNamed
     TGlauNucleus  fANucleus;       //Nucleus A
     TGlauNucleus  fBNucleus;       //Nucleus B
     Double_t      fXSect;          //Nucleon-nucleon cross section
+    Double_t      fXSectNP;        //Proton-Neutron cross section
     Double_t      fXSectOmega;     //StdDev of Nucleon-nucleon cross section
     Double_t      fXSectLambda;    //Jacobian from tot to inelastic (Strikman)
     Double_t      fXSectEvent;     //Event value of Nucleon-nucleon cross section
@@ -473,6 +479,8 @@ class TGlauberMC : public TNamed
     void                SetRA(Double_t R, Double_t a){fANucleus.SetR(R); fBNucleus.SetR(R);
                                                       fANucleus.SetA(a); fBNucleus.SetA(a);}
     void                SetNNProf(TF1 *f1)           {fNNProf = f1;}
+    void                SetXSect(Double_t d)         {fXSect   = d;}
+    void                SetXSectNP(Double_t d)       {fXSectNP = d;}
     void                SetXSectDist(TF1 *f1)        {fPTot = f1;}
     void                SetNodeDistance(Double_t d)  {fANucleus.SetNodeDist(d); fBNucleus.SetNodeDist(d);}
     void                SetRecenter(Int_t b)         {fANucleus.SetRecenter(b); fBNucleus.SetRecenter(b);}
@@ -1170,30 +1178,18 @@ void TGlauNucleus::Lookup(const char* name)
   else if (TString(name) == "Cu2")     {fN = 63;  fR = 4.20;       fA = 0.596;  fW =  0;       fF = 8;  fZ=29; fBeta2=0.162; fBeta4=-0.006;}  
   else if (TString(name) == "Cu2rw")   {fN = 63;  fR = 4.20;       fA = 0.596;  fW =  0;       fF = 14; fZ=29; fBeta2=0.162; fBeta4=-0.006; r0=1.01269; r1=-0.00298083; r2=-9.97222e-05;}  
   else if (TString(name) == "CuHN")    {fN = 63;  fR = 4.28;       fA = 0.5;    fW =  0;       fF = 1;  fZ=29;} // from arXiv:0904.4080v1
-  else if (TString(name) == "Nb")   {fN = 93; fR = 4.9853;  fA = 0.5234; fW =  0;        fF = 1; fZ=41;}
-  // <r^2>^(1/2)= 4.324    R= 4.9853(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
-  else if (TString(name) == "Zr")   {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=40;}  // FIXME fR and fA Nb !! 
-  else if (TString(name) == "Ru")   {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=44;}  // FIXME fR and fA Nb !! 
-  else if (TString(name) == "Ag")   {fN = 107; fR = 5.3006; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
-  // <r^2>^(1/2)= 4.544    R= 5.3006(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
-  else if (TString(name) == "Ag109"){fN = 109; fR = 5.3306; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
-  // 2. stable isotope
-  // <r^2>^(1/2)= 4.565    R= 5.3306(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+
   else if (TString(name) == "Xe")      {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 1;  fZ=54;}
   // adapted from arXiv:1703.04278
   else if (TString(name) == "Xes")     {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 1;  fZ=54;}
   // scale from Sb (Antimony, A=122, r=5.32) by 1.019 = (129/122)**0.333
   else if (TString(name) == "Xe2")     {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.161; fBeta4=-0.003;}
   // adapted from arXiv:1703.04278 and Z. Physik (1974) 270: 113
-  else if (TString(name) == "Xe2a")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.18; fBeta4=0;} // ALICE parameters (see public note from 2018 at https://cds.cern.ch/collection/ALICE%20Public%20Notes?ln=en)
+  else if (TString(name) == "Xe2a")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 8;  fZ=54; fBeta2=0.18; fBeta4=0;}
+  // ALICE parameters (see public note from 2018 at https://cds.cern.ch/collection/ALICE%20Public%20Notes?ln=en)
   else if (TString(name) == "Xerw")    {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 12; fZ=54; r0=1.00911; r1=-0.000722999; r2=-0.0002663;}
   else if (TString(name) == "Xesrw")   {fN = 129; fR = 5.42;       fA = 0.57;   fW =  0;       fF = 12; fZ=54; r0=1.0096; r1=-0.000874123; r2=-0.000256708;}
   else if (TString(name) == "Xe2arw")  {fN = 129; fR = 5.36;       fA = 0.59;   fW =  0;       fF = 14; fZ=54; fBeta2=0.18; fBeta4=0; r0=1.01246; r1=-0.0024851; r2=-5.72464e-05;} 
-  else if (TString(name) == "W184")    {fN = 184; fR = 6.3599;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
-  else if (TString(name) == "W186")    {fN = 186; fR = 6.3839;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
-  // both from Landolt-Börnstein
-  // W184 <r^2>^(1/2)= 5.373    R= 6.3599  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
-  // W186 <r^2>^(1/2)= 5.381    R= 6.3839  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
 
   else if (TString(name) == "W")       {fN = 186; fR = 6.58;       fA = 0.480;  fW =  0;       fF = 1;  fZ=74;}
   else if (TString(name) == "Au")      {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 1;  fZ=79;}
@@ -1202,9 +1198,7 @@ void TGlauNucleus::Lookup(const char* name)
   else if (TString(name) == "Au2rw")   {fN = 197; fR = 6.38;       fA = 0.535;  fW =  0;       fF = 14; fZ=79; fBeta2=-0.131; fBeta4=-0.031; r0=1.01261; r1=-0.00225517; r2=-3.71513e-05;}
   else if (TString(name) == "AuHN")    {fN = 197; fR = 6.42;       fA = 0.44;   fW =  0;       fF = 1;  fZ=79;}
   // from arXiv:0904.4080v1
-  else if (TString(name) == "Au3")     {fN = 197; fR = 6.5541;     fA = 0.523;  fW =  0;       fF = 1;  fZ=79;}
-  // from muonic and HBF calc from Landolt-Börnstein
-  else if (TString(name) == "Au4pn")   {fN = 197; fR = 6.538;      fA = 0.465;  fW =  0;       fF = 11; fZ=79; fR2=6.794; fA2=0.483; fW2=0;} //from GiBUU Lenske et al.
+
 
   else if (TString(name) == "Pb")      {fN = 208; fR = 6.62;       fA = 0.546;  fW =  0;       fF = 1;  fZ=82;}
   else if (TString(name) == "Pbrw")    {fN = 208; fR = 6.62;       fA = 0.546;  fW =  0;       fF = 12; fZ=82; r0=1.00863; r1=-0.00044808; r2=-0.000205872;} //only Pb 207 was tested but should be the same for 208
@@ -1215,6 +1209,65 @@ void TGlauNucleus::Lookup(const char* name)
   // Uranium description taken from Heinz & Kuhlman, nucl-th/0411054.  In this code, fR is defined as 6.8*0.91, fW=6.8*0.26
   else if (TString(name) == "U")       {fN = 238; fR = 6.188;      fA = 0.54;   fW =  1.77;    fF = 5;  fZ=92;}  
   else if (TString(name) == "U2")      {fN = 238; fR = 6.67;       fA = 0.44;   fW =  0;       fF = 8;  fZ=92; fBeta2=0.280; fBeta4=0.093;}
+
+
+  else if (TString(name) == "Nb93LB")  {fN = 93; fR = 4.9853;  fA = 0.5234; fW =  0;        fF = 1; fZ=41;}
+  // <r^2>^(1/2)= 4.324    R= 4.9853(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  else if (TString(name) == "Zr96LB")      {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=40;}  // FIXME fR and fA Nb !! 
+  else if (TString(name) == "Ru96LB")      {fN = 96; fR = 4.9853;  fA = 0.5234; fW =  0;       fF = -1; fZ=44;}  // FIXME fR and fA Nb !! 
+  else if (TString(name) == "Ag107LB") {fN = 107; fR = 5.3006; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
+  // <r^2>^(1/2)= 4.544    R= 5.3006(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  else if (TString(name) == "Ag109LB") {fN = 109; fR = 5.3306; fA = 0.5234; fW =  0;       fF = 1; fZ=47;}
+  // 2. stable isotope
+  // <r^2>^(1/2)= 4.565    R= 5.3306(1)  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  from Landolt-Börnstein
+  
+   //from GiBUU Lenske et al.
+  else if (TString(name) == "Ag107pn")        {fN = 107; fR = 5.2731;     fA = 0.4749;  fW =  0;   fF = 11; fZ=47; fR2=5.4262;fA2=0.4776; fW2=0;}
+  else if (TString(name) == "Ag109pn")        {fN = 109; fR = 5.2943;     fA = 0.4729;  fW =  0;   fF = 11; fZ=47; fR2=5.4762;fA2=0.4788; fW2=0;}
+  //from HFB14
+  else if (TString(name) == "Ag107pnHFB14")   {fN = 107; fR = 5.2875;     fA = 0.4788;  fW =  0;   fF = 11; fZ=47; fR2=5.287; fA2=0.5498; fW2=0;}
+  else if (TString(name) == "Ag109pnHFB14")   {fN = 109; fR = 5.3160;     fA = 0.4776;  fW =  0;   fF = 11; fZ=47; fR2=5.3246;fA2=0.5593; fW2=0;}
+
+  // 50Sn  *stable isotopes
+  else if (TString(name) == "Sn112")   {fN = 112; fR = 5.3714; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn114")   {fN = 114; fR = 5.3943; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn116")   {fN = 116; fR = 5.4173; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn117")   {fN = 117; fR = 5.1241; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn118")   {fN = 118; fR = 5.4391; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn119")   {fN = 119; fR = 5.4431; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn120")   {fN = 120; fR = 5.4588; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn122")   {fN = 122; fR = 5.4761; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn124")   {fN = 124; fR = 5.4907; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+
+  else if (TString(name) == "Sn112pr3"){fN = 112; fR = 4.962; fA = 2.638/(4.*TMath::Log(3.)); fW =  0.285;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn114pr3"){fN = 114; fR = 4.971; fA = 2.636/(4.*TMath::Log(3.)); fW =  0.320;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn116pr3"){fN = 116; fR = 5.062; fA = 2.625/(4.*TMath::Log(3.)); fW =  0.272;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn117pr3"){fN = 117; fR = 5.058; fA = 2.625/(4.*TMath::Log(3.)); fW =  0.295;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn118pr3"){fN = 118; fR = 5.072; fA = 2.623/(4.*TMath::Log(3.)); fW =  0.304;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn119pr3"){fN = 119; fR = 5.100; fA = 2.618/(4.*TMath::Log(3.)); fW =  0.290;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn120pr3"){fN = 120; fR = 5.110; fA = 2.619/(4.*TMath::Log(3.)); fW =  0.292;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn122pr3"){fN = 122; fR = 5.088; fA = 2.611/(4.*TMath::Log(3.)); fW =  0.378;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn124pr3"){fN = 124; fR = 5.150; fA = 2.615/(4.*TMath::Log(3.)); fW =  0.311;       fF = 1; fZ=50;}
+  
+  // 50Sn  non-stable isotopes
+  // from Angeli2013  https://inspirehep.net/literature/1611365
+  // Sn108  <r^2>^(1/2)= 4.5605  --> fR = 5.3274
+  // Sn132  <r^2>^(1/2)= 4.7093  --> fR = 5.5387
+  else if (TString(name) == "Sn108")   {fN =108; fR = 5.3274; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+  else if (TString(name) == "Sn132")   {fN =132; fR = 5.5387; fA = 0.5234; fW =  0;       fF = 1; fZ=50;}
+
+  else if (TString(name) == "W184LB")    {fN = 184; fR = 6.3599;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
+  else if (TString(name) == "W186LB")    {fN = 186; fR = 6.3839;       fA = 0.523;  fW =  0;       fF = 1;  fZ=74;}
+  // both from Landolt-Börnstein
+  // W184 <r^2>^(1/2)= 5.373    R= 6.3599  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
+  // W186 <r^2>^(1/2)= 5.381    R= 6.3839  fixed t = 2.3 --> a = t/(4 ln(3)) = 0.5234  
+
+  else if (TString(name) == "Au197LB")     {fN = 197; fR = 6.5541;   fA = 0.523;  fW =  0;   fF = 1;  fZ=79;}
+  // from muonic and HBF calc from Landolt-Börnstein
+  else if (TString(name) == "Au4pn")       {fN = 197; fR = 6.538;    fA = 0.465;  fW =  0;   fF = 11; fZ=79; fR2=6.794; fA2=0.483; fW2=0;}   //from GiBUU Lenske et al.
+  else if (TString(name) == "Au197pnHFB14"){fN = 197; fR = 6.5831;   fA = 0.4628; fW =  0;   fF = 11; fZ=79; fR2=6.6604; fA2=0.5464; fW2=0;} //HFB14
+    
+
   else {
     cout << "Could not find nucleus " << name << endl;
     return;
@@ -1729,8 +1782,8 @@ TVector3 &TGlauNucleus::ThrowNucleons(Double_t xshift)
     sumx += nucleon->GetX();
     sumy += nucleon->GetY();
     sumz += nucleon->GetZ();
-      sumr2 += nucleon->GetX()*nucleon->GetX() + nucleon->GetY()*nucleon->GetY() +
-	     nucleon->GetZ()*nucleon->GetZ() ;
+    sumr2 += nucleon->GetX()*nucleon->GetX() + nucleon->GetY()*nucleon->GetY() +
+	       nucleon->GetZ()*nucleon->GetZ();
   }
     fRMSradius = TMath::Sqrt(sumr2/fN);   //BK
 //    printf("ftrails: \t %d \t fRMSradius: \t  %.5f \t Sumr2: \t %.5f (fm)  \n",fTrials-fN,fRMSradius,sumr2); //BK
@@ -1795,7 +1848,7 @@ TVector3 &TGlauNucleus::ThrowNucleons(Double_t xshift)
 
 TGlauberMC::TGlauberMC(const char* NA, const char* NB, Double_t xsect, Double_t xsectsigma) :
   fANucleus(NA),fBNucleus(NB),
-  fXSect(xsect),fXSectOmega(0),fXSectLambda(0),fXSectEvent(0),
+  fXSect(xsect),fXSectNP(0),fXSectOmega(0),fXSectLambda(0),fXSectEvent(0),
   fNucleonsA(0),fNucleonsB(0),fNucleons(0),
   fAN(0),fBN(0),fNt(0),fNtInfo(0),
   fEvents(0),fTotalEvents(0),fBmin(0),fBmax(20),fHardFrac(0.65),
@@ -1856,13 +1909,16 @@ Bool_t TGlauberMC::CalcEvent(Double_t bgen)
     fXSectEvent = fXSect;
 
   // "ball" diameter = distance at which two balls interact
-  Double_t d2 = (Double_t)fXSectEvent/(TMath::Pi()*10); // in fm^2
-  Double_t bh = TMath::Sqrt(d2*fHardFrac);
+  Double_t d2NN = (Double_t)fXSectEvent/(TMath::Pi()*10); // in fm^2
+  Double_t d2 = d2NN;
+  Double_t d2np = (Double_t)fXSectNP/(TMath::Pi()*10); // in fm^2
+  Double_t bh = TMath::Sqrt(d2NN*fHardFrac);
   if (fNNProf) {
     Double_t xmin=0,xmax=0;
     fNNProf->GetRange(xmin,xmax);
     d2 = xmax*xmax;
   }
+  
 
   fEv.Reset();
   memset(fBC,0,sizeof(Bool_t)*999*999);
@@ -1875,8 +1931,14 @@ Bool_t TGlauberMC::CalcEvent(Double_t bgen)
       Double_t dx = nucleonB->GetX()-nucleonA->GetX();
       Double_t dy = nucleonB->GetY()-nucleonA->GetY();
       Double_t dij = dx*dx+dy*dy;
-      if (fDoAAGG && fPTot)
-	d2 = 0.5*(xsecA[j]+xsecB[i])/(TMath::Pi()*10);
+      Bool_t tA=nucleonA->GetType(); //0 = neutron, 1 = proton
+      if (fXSectNP>0){
+          if (tA!=tB) d2 = d2np;
+          else        d2 = d2NN;
+      }
+      else if (fDoAAGG && fPTot){
+          d2 = 0.5*(xsecA[j]+xsecB[i])/(TMath::Pi()*10);
+      }
       if (dij>d2) 
         continue;
       Double_t bij = TMath::Sqrt(dij);
@@ -1893,7 +1955,6 @@ Bool_t TGlauberMC::CalcEvent(Double_t bgen)
       ++nc;
       if (bij<bh)
         ++nh;
-      Bool_t tA=nucleonA->GetType();
       if (tA!=tB)
         ++fEv.Ncollpn;
       else if (tA==1)
@@ -1940,10 +2001,13 @@ Bool_t TGlauberMC::CalcResults(Double_t bgen)
     fEv.MeanXA  += xA;
     fEv.MeanYA  += yA;
     if (nucleonA->IsWounded()) {
+      if(nucleonA->GetType()==0){ //0 = neutron, 1 = proton
+           ++fEv.NpartAn; 
+           if (nucleonA->GetNColl()==1) ++fEv.Npart0n; 
+      }
       Double_t w = nucleonA->Get2CWeight(f2Cx);
       ++fEv.Npart;
-      if (nucleonA->GetNColl()==1)
-	++fEv.Npart0;
+      if (nucleonA->GetNColl()==1)  ++fEv.Npart0;
       ++fEv.NpartA;
       sumW   += w;
       sumWA  += w;
@@ -1964,10 +2028,13 @@ Bool_t TGlauberMC::CalcResults(Double_t bgen)
     fEv.MeanXB  += xB;
     fEv.MeanYB  += yB;
     if (nucleonB->IsWounded()) {
+      if(nucleonB->GetType()==0){ //0 = neutron, 1 = proton
+           ++fEv.NpartBn; 
+           if (nucleonB->GetNColl()==1) ++fEv.Npart0n; 
+      }
       Double_t w = nucleonB->Get2CWeight(f2Cx);
       ++fEv.Npart;
-      if (nucleonB->GetNColl()==1)
-	++fEv.Npart0;
+      if (nucleonB->GetNColl()==1) ++fEv.Npart0;
       ++fEv.NpartB;
       sumW   += w;
       sumWB  += w;
@@ -2438,7 +2505,7 @@ void TGlauberMC::Run(Int_t nevents, Double_t b)
   if (fNt == 0) {
     TString name(Form("nt_%s_%s",fANucleus.GetName(),fBNucleus.GetName()));
     TString title(Form("%s + %s (x-sect = %.1f mb) str %s",fANucleus.GetName(),fBNucleus.GetName(),fXSect,Str()));
-    TString vars("Npart:Ncoll:Nhard:B:BNN:Ncollpp:Ncollpn:Ncollnn:VarX:VarY:VarXY:NpartA:NpartB:Npart0:AreaW");
+    TString vars("Npart:Ncoll:Nhard:B:BNN:Ncollpp:Ncollpn:Ncollnn:VarX:VarY:VarXY:NpartA:NpartB:Npart0:NpartAn:NpartBn:Npart0n:AreaW");
     if (fDetail>1)
       vars+=":Psi1:Ecc1:Psi2:Ecc2:Psi3:Ecc3:Psi4:Ecc4:Psi5:Ecc5";
     if (fDetail>2)
@@ -2452,8 +2519,8 @@ void TGlauberMC::Run(Int_t nevents, Double_t b)
     TObjArray *l = fNt->GetListOfBranches();
     for (Int_t i=0; i<l->GetEntries(); ++i) {
       TBranch *br = dynamic_cast<TBranch*>(l->At(i));
-      if (br)
-        br->SetCompressionLevel(9);
+      //if (br)
+        //br->SetCompressionLevel(9);
     }
   }
 
