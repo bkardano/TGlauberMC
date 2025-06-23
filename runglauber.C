@@ -95,6 +95,7 @@ Marked with BK
 #include <TString.h>
 #include <TSystem.h>
 #include <TVector3.h>
+#include <TGraph.h>
 #ifdef HAVE_MATHMORE
  #include <Math/SpecFuncMathMore.h>
 #endif
@@ -481,6 +482,7 @@ class TGlauberMC : public TNamed
     void                SetNNProf(TF1 *f1)           {fNNProf = f1;}
     void                SetXSect(Double_t d)         {fXSect   = d;}
     void                SetXSectNP(Double_t d)       {fXSectNP = d;}
+    void                SetXSectBeamEnergy(Double_t beamEnergy, Bool_t setXSectNP=kTRUE);
     void                SetXSectDist(TF1 *f1)        {fPTot = f1;}
     void                SetNodeDistance(Double_t d)  {fANucleus.SetNodeDist(d); fBNucleus.SetNodeDist(d);}
     void                SetRecenter(Int_t b)         {fANucleus.SetRecenter(b); fBNucleus.SetRecenter(b);}
@@ -1872,6 +1874,37 @@ TGlauberMC::TGlauberMC(const char* NA, const char* NB, Double_t xsect, Double_t 
   TString title(Form("Glauber %s+%s Version",fANucleus.GetName(),fBNucleus.GetName()));
   SetName(name);
   SetTitle(title);
+}
+
+void TGlauberMC::SetXSectBeamEnergy(Double_t beamEnergy, Bool_t setXSectNP)
+{
+  //
+  if(setXSectNP && (beamEnergy < 0.3 || beamEnergy > 4.2) ){
+    return;
+  }
+
+  if(beamEnergy < 0.28 || beamEnergy > 425.){
+    return;
+  }
+  
+  TGraph *g_pp = new TGraph("bystricky-pp.dat", "%lg %lg");
+  if(!g_pp) return;
+  g_pp->SetBit(TGraph::kIsSortedX);
+  //g_pp->Print("all");
+  fXSect = g_pp->Eval(beamEnergy);
+  
+  TGraph *g_np;
+  if (setXSectNP) {
+     g_np = new TGraph("bystricky-np.dat", "%lg %lg");
+     if(!g_np) return;
+     g_np->SetBit(TGraph::kIsSortedX);
+     //g_np->Print("all");
+     fXSectNP = g_np->Eval(beamEnergy);
+  }
+  else{
+    fXSectNP = 0.;
+  }
+  printf("beamEnergy: \t%.3f \t fXSect: \t%.3f \t fXSectNP \t%.3f\n",beamEnergy, fXSect, fXSectNP);
 }
 
 Bool_t TGlauberMC::CalcEvent(Double_t bgen)
